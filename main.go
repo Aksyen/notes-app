@@ -38,6 +38,45 @@ func getNotesHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(notes) // просто отдаём весь срез
 }
 
+func postNotesHandler(w http.ResponseWriter, r *http.Request) {
+	// 1. Декодируем JSON из тела запроса во временную структуру
+	var input struct {
+		Title   string `json:"title"`
+		Content string `json:"content"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&input); err != nil {
+		http.Error(w, "Invalid JSON", http.StatusBadRequest)
+		return
+	}
+
+	// 2. Создаём новую заметку
+	note := Note{
+		ID:        nextID,
+		Title:     input.Title,
+		Content:   input.Content,
+		CreatedAt: JSONTime(time.Now()),
+	}
+	notes = append(notes, note)
+	nextID++
+
+	// 3. Отправляем ответ — саму заметку + статус 201
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated) // ← 201, а не 200!
+	json.NewEncoder(w).Encode(note)
+}
+
+func notesHandler(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case "GET":
+		getNotesHandler(w, r)
+	case "POST":
+		postNotesHandler(w, r)
+	default:
+		w.Header().Set("Allow", "GET, POST")
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
 func main() {
 	// Добавим одну заметку "вручную", чтобы было что посмотреть
 	notes = append(notes, Note{
@@ -50,7 +89,7 @@ func main() {
 
 	// Регистрируем новый путь
 	http.HandleFunc("/ping", pingHandler)
-	http.HandleFunc("/notes", getNotesHandler) // ← новый!
+	http.HandleFunc("/notes", notesHandler)
 
 	log.Println("Server started on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
