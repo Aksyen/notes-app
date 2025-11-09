@@ -7,12 +7,20 @@ import (
 	"time"
 )
 
+type JSONTime time.Time
+
+func (t JSONTime) MarshalJSON() ([]byte, error) {
+	// Форматируем время как RFC3339, но без наносекунд
+	formatted := time.Time(t).UTC().Format("2006-01-02T15:04:05Z")
+	return []byte(`"` + formatted + `"`), nil
+}
+
 // Note — структура одной заметки
 type Note struct {
-	ID        int       `json:"id"`
-	Title     string    `json:"title"`
-	Content   string    `json:"content"`
-	CreatedAt time.Time `json:"created_at"`
+	ID        int      `json:"id"`
+	Title     string   `json:"title"`
+	Content   string   `json:"content"`
+	CreatedAt JSONTime `json:"created_at"`
 }
 
 // Глобальная переменная — наше временное "хранилище"
@@ -36,7 +44,7 @@ func main() {
 		ID:        nextID,
 		Title:     "Добро пожаловать!",
 		Content:   "Это первая заметка в нашем API.",
-		CreatedAt: time.Now(),
+		CreatedAt: JSONTime(time.Now()),
 	})
 	nextID++
 
